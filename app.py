@@ -85,13 +85,13 @@ def load_data():
         parse_dates=["date"]
     )
 
-     payments = pd.read_csv(
+    payments = pd.read_csv(
         "data/demo_payments.csv",
         parse_dates=["payment_date"]
     )
 
     marketing = pd.read_csv(
-        "demo_marketing.csv",
+        "data/demo_marketing.csv",
         parse_dates=["date"]
     )
 
@@ -103,6 +103,14 @@ def load_data():
         "auto_insights.csv"
     )
 
+    return (
+        players,
+        activity,
+        payments,
+        marketing,
+        liveops,
+        insights
+    )
     return (
         players,
         activity,
