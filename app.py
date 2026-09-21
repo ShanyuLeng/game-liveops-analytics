@@ -96,7 +96,7 @@ def load_data():
     )
 
     liveops = pd.read_csv(
-        "liveops_event_uplift.csv"
+        "outputs/liveops_event_uplift.csv"
     )
 
     insights = pd.read_csv(
