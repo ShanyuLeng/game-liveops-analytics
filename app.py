@@ -130,6 +130,71 @@ OBSERVATION_END = activity["date"].max()
 # 3. 左侧交互筛选器
 # ==========================================
 
+# ==========================================
+# 数据来源选择
+# ==========================================
+
+st.sidebar.title(
+    "📂 数据来源"
+)
+
+data_source = st.sidebar.radio(
+    "选择分析数据",
+    [
+        "使用内置模拟数据",
+        "上传自己的 CSV"
+    ]
+)
+
+st.sidebar.divider()
+
+# ==========================================
+# CSV 上传
+# ==========================================
+
+uploaded_players = None
+uploaded_activity = None
+uploaded_payments = None
+uploaded_marketing = None
+uploaded_liveops = None
+
+
+if data_source == "上传自己的 CSV":
+
+    st.sidebar.subheader(
+        "上传数据文件"
+    )
+
+    uploaded_players = st.sidebar.file_uploader(
+        "① 玩家基础数据 players.csv",
+        type=["csv"],
+        key="players_upload"
+    )
+
+    uploaded_activity = st.sidebar.file_uploader(
+        "② 每日活跃数据 daily_activity.csv",
+        type=["csv"],
+        key="activity_upload"
+    )
+
+    uploaded_payments = st.sidebar.file_uploader(
+        "③ 付费数据 payments.csv",
+        type=["csv"],
+        key="payments_upload"
+    )
+
+    uploaded_marketing = st.sidebar.file_uploader(
+        "④ 广告投放数据 marketing.csv（可选）",
+        type=["csv"],
+        key="marketing_upload"
+    )
+
+    uploaded_liveops = st.sidebar.file_uploader(
+        "⑤ LiveOps 活动数据（可选）",
+        type=["csv"],
+        key="liveops_upload"
+    )
+
 st.sidebar.title(
     "🎛️ 数据筛选"
 )
