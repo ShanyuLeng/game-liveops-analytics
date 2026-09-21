@@ -491,7 +491,64 @@ if data_source == "上传自己的 CSV":
                 ]
             )
 
+# ------------------------------
+# LiveOps 活动文件（可选）
+# ------------------------------
 
+uploaded_liveops_events_df = None
+
+
+if uploaded_liveops is not None:
+
+    uploaded_liveops_events_df = pd.read_csv(
+        uploaded_liveops
+    )
+
+
+    required_liveops_cols = {
+        "event_name",
+        "start_date",
+        "end_date"
+    }
+
+
+    missing_liveops_cols = (
+        required_liveops_cols
+        - set(
+            uploaded_liveops_events_df.columns
+        )
+    )
+
+
+    if missing_liveops_cols:
+
+        st.error(
+            "LiveOps 文件缺少字段："
+            + ", ".join(
+                missing_liveops_cols
+            )
+        )
+
+        st.stop()
+
+
+    uploaded_liveops_events_df[
+        "start_date"
+    ] = pd.to_datetime(
+        uploaded_liveops_events_df[
+            "start_date"
+        ]
+    )
+
+
+    uploaded_liveops_events_df[
+        "end_date"
+    ] = pd.to_datetime(
+        uploaded_liveops_events_df[
+            "end_date"
+        ]
+    )
+        
         # ------------------------------
         # 6. 更新观察截止日期
         # ------------------------------
@@ -646,6 +703,303 @@ if channel_filter != "All":
         == channel_filter
     ]
 
+# ==========================================
+# 动态 LiveOps 活动分析
+# ==========================================
+
+def calculate_liveops_performance(
+    events_data,
+    activity_data,
+    payments_data
+):
+
+    # ------------------------------
+    # 每日 DAU
+    # ------------------------------
+
+    daily_dau = (
+        activity_data
+        .groupby("date")["user_id"]
+        .nunique()
+        .reset_index(
+            name="DAU"
+        )
+    )
+
+
+    # ------------------------------
+    # 每日 Revenue
+    # ------------------------------
+
+    daily_revenue = (
+        payments_data
+        .groupby("payment_date")[
+            "amount_usd"
+        ]
+        .sum()
+        .reset_index()
+        .rename(
+            columns={
+                "payment_date": "date",
+                "amount_usd": "Revenue"
+            }
+        )
+    )
+
+
+    # ------------------------------
+    # 创建完整日期范围
+    # ------------------------------
+
+    start_date = activity_data[
+        "date"
+    ].min()
+
+    end_date = activity_data[
+        "date"
+    ].max()
+
+
+    all_dates = pd.DataFrame({
+        "date": pd.date_range(
+            start_date,
+            end_date,
+            freq="D"
+        )
+    })
+
+
+    daily_metrics = (
+        all_dates
+        .merge(
+            daily_dau,
+            on="date",
+            how="left"
+        )
+        .merge(
+            daily_revenue,
+            on="date",
+            how="left"
+        )
+        .fillna(0)
+    )
+
+
+    results = []
+
+
+    # ------------------------------
+    # 分析每个活动
+    # ------------------------------
+
+    for _, event in events_data.iterrows():
+
+        event_name = event[
+            "event_name"
+        ]
+
+        event_start = event[
+            "start_date"
+        ]
+
+        event_end = event[
+            "end_date"
+        ]
+
+
+        event_length = (
+            event_end
+            - event_start
+        ).days + 1
+
+
+        # 活动前相同长度
+        before_start = (
+            event_start
+            - pd.Timedelta(
+                days=event_length
+            )
+        )
+
+        before_end = (
+            event_start
+            - pd.Timedelta(days=1)
+        )
+
+
+        # 活动后相同长度
+        after_start = (
+            event_end
+            + pd.Timedelta(days=1)
+        )
+
+        after_end = (
+            event_end
+            + pd.Timedelta(
+                days=event_length
+            )
+        )
+
+
+        before_data = daily_metrics[
+            (
+                daily_metrics["date"]
+                >= before_start
+            )
+            &
+            (
+                daily_metrics["date"]
+                <= before_end
+            )
+        ]
+
+
+        during_data = daily_metrics[
+            (
+                daily_metrics["date"]
+                >= event_start
+            )
+            &
+            (
+                daily_metrics["date"]
+                <= event_end
+            )
+        ]
+
+
+        after_data = daily_metrics[
+            (
+                daily_metrics["date"]
+                >= after_start
+            )
+            &
+            (
+                daily_metrics["date"]
+                <= after_end
+            )
+        ]
+
+
+        before_dau = (
+            before_data[
+                "DAU"
+            ].mean()
+        )
+
+        during_dau = (
+            during_data[
+                "DAU"
+            ].mean()
+        )
+
+        after_dau = (
+            after_data[
+                "DAU"
+            ].mean()
+        )
+
+
+        before_revenue = (
+            before_data[
+                "Revenue"
+            ].mean()
+        )
+
+        during_revenue = (
+            during_data[
+                "Revenue"
+            ].mean()
+        )
+
+        after_revenue = (
+            after_data[
+                "Revenue"
+            ].mean()
+        )
+
+
+        dau_change = (
+            (
+                during_dau
+                - before_dau
+            )
+            / before_dau
+            * 100
+            if before_dau > 0
+            else np.nan
+        )
+
+
+        revenue_change = (
+            (
+                during_revenue
+                - before_revenue
+            )
+            / before_revenue
+            * 100
+            if before_revenue > 0
+            else np.nan
+        )
+
+
+        results.append({
+
+            "event_name":
+                event_name,
+
+            "Before_DAU":
+                round(
+                    before_dau,
+                    2
+                ),
+
+            "During_DAU":
+                round(
+                    during_dau,
+                    2
+                ),
+
+            "After_DAU":
+                round(
+                    after_dau,
+                    2
+                ),
+
+            "DAU_change_pct":
+                round(
+                    dau_change,
+                    2
+                ),
+
+            "Before_Revenue":
+                round(
+                    before_revenue,
+                    2
+                ),
+
+            "During_Revenue":
+                round(
+                    during_revenue,
+                    2
+                ),
+
+            "After_Revenue":
+                round(
+                    after_revenue,
+                    2
+                ),
+
+            "Revenue_change_pct":
+                round(
+                    revenue_change,
+                    2
+                )
+        })
+
+
+    return pd.DataFrame(
+        results
+    )
 
 # ==========================================
 # 6. 计算动态 DAU / MAU
@@ -1872,15 +2226,248 @@ with tab4:
 
 with tab5:
 
-    st.warning(
-        "当前版本的 LiveOps Uplift 和自动运营诊断"
-        "基于全量模拟数据，因此暂不随左侧筛选器动态变化。"
-        "后续版本将加入动态诊断。"
-    )
+# ==========================================
+# 动态 LiveOps 页面
+# ==========================================
 
+if data_source == "上传自己的 CSV":
+
+    if uploaded_liveops_events_df is None:
+
+        st.info(
+            "当前没有上传 LiveOps 活动文件。"
+            "如需分析活动效果，请在左侧上传活动日历 CSV。"
+        )
+
+
+    else:
+
+        dynamic_liveops = (
+            calculate_liveops_performance(
+                uploaded_liveops_events_df,
+                filtered_activity,
+                filtered_payments
+            )
+        )
+
+
+        st.subheader(
+            "LiveOps 活动表现"
+        )
+
+
+        st.caption(
+            "以下结果比较活动期间与活动前相同长度窗口的"
+            "描述性变化。该结果不等同于因果 Uplift。"
+        )
+
+
+        liveops_display = (
+            dynamic_liveops.rename(
+                columns={
+                    "event_name":
+                        "活动",
+
+                    "Before_DAU":
+                        "活动前平均 DAU",
+
+                    "During_DAU":
+                        "活动期间平均 DAU",
+
+                    "After_DAU":
+                        "活动后平均 DAU",
+
+                    "DAU_change_pct":
+                        "DAU 变化 (%)",
+
+                    "Before_Revenue":
+                        "活动前平均 Revenue",
+
+                    "During_Revenue":
+                        "活动期间平均 Revenue",
+
+                    "After_Revenue":
+                        "活动后平均 Revenue",
+
+                    "Revenue_change_pct":
+                        "Revenue 变化 (%)"
+                }
+            )
+        )
+
+
+        st.dataframe(
+            liveops_display,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+        st.subheader(
+            "活动期间 Revenue 变化"
+        )
+
+
+        revenue_change_chart = (
+            dynamic_liveops[[
+                "event_name",
+                "Revenue_change_pct"
+            ]]
+            .set_index(
+                "event_name"
+            )
+        )
+
+
+        st.bar_chart(
+            revenue_change_chart
+        )
+
+
+        # ------------------------------
+        # 活动动态诊断
+        # ------------------------------
+
+        st.subheader(
+            "LiveOps 动态诊断"
+        )
+
+
+        for _, row in dynamic_liveops.iterrows():
+
+            event_name = row[
+                "event_name"
+            ]
+
+            dau_change = row[
+                "DAU_change_pct"
+            ]
+
+            revenue_change = row[
+                "Revenue_change_pct"
+            ]
+
+
+            if (
+                pd.notna(revenue_change)
+                and pd.notna(dau_change)
+                and revenue_change
+                > dau_change * 1.3
+                and revenue_change > 0
+            ):
+
+                signal = (
+                    "商业化提升更明显"
+                )
+
+                diagnosis = (
+                    f"{event_name} 期间 DAU 相比活动前变化 "
+                    f"{dau_change:.2f}%，"
+                    f"Revenue 变化 {revenue_change:.2f}%。"
+                    "收入增幅明显高于活跃变化。"
+                )
+
+                recommendation = (
+                    "建议进一步拆分付费率、ARPU和商品类型，"
+                    "判断收入增长来自更多玩家付费"
+                    "还是付费深度提升。"
+                )
+
+
+            elif (
+                pd.notna(dau_change)
+                and pd.notna(revenue_change)
+                and dau_change > 0
+                and revenue_change > 0
+            ):
+
+                signal = (
+                    "活跃与商业化同步提升"
+                )
+
+                diagnosis = (
+                    f"{event_name} 期间 DAU 相比活动前提升 "
+                    f"{dau_change:.2f}%，"
+                    f"Revenue 提升 {revenue_change:.2f}%。"
+                )
+
+                recommendation = (
+                    "建议继续观察活动结束后的用户留存，"
+                    "判断短期增长能否转化为长期用户价值。"
+                )
+
+
+            elif (
+                pd.notna(dau_change)
+                and dau_change > 0
+            ):
+
+                signal = (
+                    "拉活有效但变现较弱"
+                )
+
+                diagnosis = (
+                    f"{event_name} 对 DAU 有正向变化，"
+                    f"但 Revenue 变化为 "
+                    f"{revenue_change:.2f}%。"
+                )
+
+                recommendation = (
+                    "建议检查活动奖励、付费商品和商业化触点，"
+                    "判断活跃用户是否缺乏合适的付费转化路径。"
+                )
+
+
+            else:
+
+                signal = (
+                    "活动效果待复盘"
+                )
+
+                diagnosis = (
+                    f"{event_name} 期间 DAU 变化 "
+                    f"{dau_change:.2f}%，"
+                    f"Revenue 变化 "
+                    f"{revenue_change:.2f}%。"
+                )
+
+                recommendation = (
+                    "建议结合大盘趋势、活动参与率和用户分群"
+                    "进一步复盘，不应仅根据简单前后对比"
+                    "判断活动是否有效。"
+                )
+
+
+            with st.expander(
+                f"🎮 {event_name} ｜ {signal}"
+            ):
+
+                st.write(
+                    "**诊断：**",
+                    diagnosis
+                )
+
+                st.write(
+                    "**建议：**",
+                    recommendation
+                )
+
+
+        st.divider()
+
+
+else:
+
+    # 内置 Demo 数据继续展示模拟实验中的 Uplift
 
     st.subheader(
         "LiveOps 活动增量表现"
+    )
+
+
+    st.caption(
+        "内置 Demo 数据拥有模拟基线，"
+        "因此这里可展示预设活动相对于基线的 Uplift。"
     )
 
 
@@ -1925,12 +2512,10 @@ with tab5:
 
 
     liveops_chart = (
-        liveops[
-            [
-                "event_name",
-                "Revenue_uplift_pct"
-            ]
-        ]
+        liveops[[
+            "event_name",
+            "Revenue_uplift_pct"
+        ]]
         .set_index(
             "event_name"
         )
@@ -1943,7 +2528,6 @@ with tab5:
 
 
     st.divider()
-
 
 # ==========================================
 # 动态自动运营诊断
