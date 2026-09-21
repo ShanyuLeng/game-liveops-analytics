@@ -1,0 +1,4 @@
+﻿retention_day,eligible_users,retained_users,retention_rate,retention_pct
+D1,50000,21390,0.4278,42.78
+D7,50000,10212,0.20424,20.42
+D30,50000,5126,0.10252,10.25
