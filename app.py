@@ -1945,29 +1945,269 @@ with tab5:
     st.divider()
 
 
-    st.subheader(
-        "自动运营诊断"
+# ==========================================
+# 动态自动运营诊断
+# ==========================================
+
+st.subheader(
+    "自动运营诊断"
+)
+
+st.caption(
+    "以下诊断基于当前上传数据与筛选条件动态生成，"
+    "属于规则型运营分析，不代表因果结论。"
+)
+
+
+# ------------------------------------------
+# 1. 当前样本整体诊断
+# ------------------------------------------
+
+with st.expander(
+    "📊 当前样本｜用户质量与商业化"
+):
+
+    if d7 >= 22:
+
+        retention_text = (
+            f"当前 D7 Retention 为 {d7:.2f}%，"
+            "在本项目设定的判断规则下表现相对较强。"
+        )
+
+        retention_action = (
+            "建议继续观察 D30 Retention，"
+            "并拆分市场、平台和渠道确认优势来源。"
+        )
+
+    elif d7 < 18:
+
+        retention_text = (
+            f"当前 D7 Retention 为 {d7:.2f}%，"
+            "中期用户留存相对偏弱。"
+        )
+
+        retention_action = (
+            "建议重点检查新手期内容承接、"
+            "Day 2–7 活动节奏及用户流失节点。"
+        )
+
+    else:
+
+        retention_text = (
+            f"当前 D7 Retention 为 {d7:.2f}%，"
+            "处于中等水平。"
+        )
+
+        retention_action = (
+            "建议结合渠道和市场进一步拆分，"
+            "寻找高留存与低留存用户群体。"
+        )
+
+
+    if payer_rate >= 10:
+
+        payer_text = (
+            f"付费率为 {payer_rate:.2f}%，"
+            "当前玩家群体的付费转化相对较好。"
+        )
+
+        payer_action = (
+            "可进一步关注 ARPPU、商品结构和高价值玩家，"
+            "判断是否还有提升付费深度的空间。"
+        )
+
+    elif payer_rate < 7:
+
+        payer_text = (
+            f"付费率为 {payer_rate:.2f}%，"
+            "付费转化相对偏弱。"
+        )
+
+        payer_action = (
+            "建议检查首充设计、礼包价值感、"
+            "首次付费触点及用户质量。"
+        )
+
+    else:
+
+        payer_text = (
+            f"付费率为 {payer_rate:.2f}%，"
+            "当前付费转化处于中等水平。"
+        )
+
+        payer_action = (
+            "建议同时结合 ARPU 和 ARPPU，"
+            "判断优化重点应放在付费转化还是付费深度。"
+        )
+
+
+    st.write(
+        "**诊断：**",
+        retention_text,
+        payer_text,
+        f"当前 ARPU 为 ${arpu:.2f}，"
+        f"ARPPU 为 ${arppu:.2f}。"
+    )
+
+    st.write(
+        "**建议：**",
+        retention_action,
+        payer_action
     )
 
 
-    for _, row in insights.iterrows():
+# ------------------------------------------
+# 2. 动态渠道诊断
+# ------------------------------------------
+
+paid_diag = channel_summary[
+    (
+        channel_summary["channel"]
+        != "Organic"
+    )
+    &
+    (
+        channel_summary[
+            "D30_ROAS_pct"
+        ].notna()
+    )
+].copy()
+
+
+if len(paid_diag) > 0:
+
+    median_ltv = (
+        paid_diag[
+            "D30_LTV"
+        ].median()
+    )
+
+    median_cpi = (
+        paid_diag[
+            "CPI"
+        ].median()
+    )
+
+
+    for _, row in paid_diag.iterrows():
+
+        channel = row[
+            "channel"
+        ]
+
+        roas = row[
+            "D30_ROAS_pct"
+        ]
+
+        cpi = row[
+            "CPI"
+        ]
+
+        ltv = row[
+            "D30_LTV"
+        ]
+
+        channel_d7 = row[
+            "D7"
+        ]
+
+
+        # ROAS较好
+        if roas >= 105:
+
+            signal = "扩量机会"
+
+            diagnosis = (
+                f"{channel} 的 D30 ROAS 为 "
+                f"{roas:.2f}%，当前30天归因收入"
+                "已覆盖媒体投放成本。"
+            )
+
+            recommendation = (
+                "可考虑小幅增加预算进行扩量测试，"
+                "同时持续观察扩量后的 CPI、Retention "
+                "和用户价值是否恶化。"
+            )
+
+
+        # 接近回本
+        elif roas >= 95:
+
+            signal = "接近回本"
+
+            diagnosis = (
+                f"{channel} 的 D30 ROAS 为 "
+                f"{roas:.2f}%，已接近媒体投放成本回收线。"
+            )
+
+            recommendation = (
+                "暂不建议大幅调整预算，"
+                "可优先测试降低 CPI 或提升后续付费表现，"
+                "并继续观察更长期回收。"
+            )
+
+
+        # 高价值但获客贵
+        elif (
+            ltv >= median_ltv
+            and cpi >= median_cpi
+        ):
+
+            signal = "获客成本风险"
+
+            diagnosis = (
+                f"{channel} 的 D30 LTV 为 "
+                f"${ltv:.2f}，用户价值相对较高，"
+                f"但 CPI 为 ${cpi:.2f}，"
+                f"导致 D30 ROAS 仅为 {roas:.2f}%。"
+            )
+
+            recommendation = (
+                "问题更可能出在获客成本而不是用户质量。"
+                "建议优先测试素材、受众、版位和出价，"
+                "尝试降低 CPI，而不是直接停止投放。"
+            )
+
+
+        # 其他低ROAS情况
+        else:
+
+            signal = "效率待优化"
+
+            diagnosis = (
+                f"{channel} 的 D30 ROAS 为 "
+                f"{roas:.2f}%，目前尚未达到媒体成本回收线；"
+                f"D7 Retention 为 {channel_d7:.2f}%。"
+            )
+
+            recommendation = (
+                "建议进一步拆分国家、平台和广告素材，"
+                "判断问题主要来自获客成本、留存还是商业化价值。"
+            )
+
 
         with st.expander(
-            f"{row['category']} ｜ "
-            f"{row['target']} ｜ "
-            f"{row['signal']}"
+            f"📣 渠道投放 ｜ "
+            f"{channel} ｜ "
+            f"{signal}"
         ):
 
             st.write(
                 "**诊断：**",
-                row["diagnosis"]
+                diagnosis
             )
-
 
             st.write(
                 "**建议：**",
-                row["recommendation"]
+                recommendation
             )
+
+
+else:
+
+    st.info(
+        "当前筛选条件下没有可用于 ROAS 诊断的付费渠道数据。"
+    )
 
 
 # ==========================================
