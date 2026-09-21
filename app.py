@@ -495,60 +495,60 @@ if data_source == "上传自己的 CSV":
 # LiveOps 活动文件（可选）
 # ------------------------------
 
-uploaded_liveops_events_df = None
-
-
-if uploaded_liveops is not None:
-
-    uploaded_liveops_events_df = pd.read_csv(
-        uploaded_liveops
-    )
-
-
-    required_liveops_cols = {
-        "event_name",
-        "start_date",
-        "end_date"
-    }
-
-
-    missing_liveops_cols = (
-        required_liveops_cols
-        - set(
-            uploaded_liveops_events_df.columns
-        )
-    )
-
-
-    if missing_liveops_cols:
-
-        st.error(
-            "LiveOps 文件缺少字段："
-            + ", ".join(
-                missing_liveops_cols
-            )
-        )
-
-        st.stop()
-
-
-    uploaded_liveops_events_df[
-        "start_date"
-    ] = pd.to_datetime(
-        uploaded_liveops_events_df[
-            "start_date"
-        ]
-    )
-
-
-    uploaded_liveops_events_df[
-        "end_date"
-    ] = pd.to_datetime(
-        uploaded_liveops_events_df[
-            "end_date"
-        ]
-    )
+        uploaded_liveops_events_df = None
         
+        
+        if uploaded_liveops is not None:
+        
+            uploaded_liveops_events_df = pd.read_csv(
+                uploaded_liveops
+            )
+        
+        
+            required_liveops_cols = {
+                "event_name",
+                "start_date",
+                "end_date"
+            }
+        
+        
+            missing_liveops_cols = (
+                required_liveops_cols
+                - set(
+                    uploaded_liveops_events_df.columns
+                )
+            )
+        
+        
+            if missing_liveops_cols:
+        
+                st.error(
+                    "LiveOps 文件缺少字段："
+                    + ", ".join(
+                        missing_liveops_cols
+                    )
+                )
+        
+                st.stop()
+        
+        
+            uploaded_liveops_events_df[
+                "start_date"
+            ] = pd.to_datetime(
+                uploaded_liveops_events_df[
+                    "start_date"
+                ]
+            )
+        
+        
+            uploaded_liveops_events_df[
+                "end_date"
+            ] = pd.to_datetime(
+                uploaded_liveops_events_df[
+                    "end_date"
+                ]
+            )
+                
         # ------------------------------
         # 6. 更新观察截止日期
         # ------------------------------
