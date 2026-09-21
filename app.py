@@ -2230,569 +2230,569 @@ with tab5:
 # 动态 LiveOps 页面
 # ==========================================
 
-if data_source == "上传自己的 CSV":
-
-    if uploaded_liveops_events_df is None:
-
-        st.info(
-            "当前没有上传 LiveOps 活动文件。"
-            "如需分析活动效果，请在左侧上传活动日历 CSV。"
-        )
-
-
-    else:
-
-        dynamic_liveops = (
-            calculate_liveops_performance(
-                uploaded_liveops_events_df,
-                filtered_activity,
-                filtered_payments
+    if data_source == "上传自己的 CSV":
+    
+        if uploaded_liveops_events_df is None:
+    
+            st.info(
+                "当前没有上传 LiveOps 活动文件。"
+                "如需分析活动效果，请在左侧上传活动日历 CSV。"
             )
-        )
-
-
+    
+    
+        else:
+    
+            dynamic_liveops = (
+                calculate_liveops_performance(
+                    uploaded_liveops_events_df,
+                    filtered_activity,
+                    filtered_payments
+                )
+            )
+    
+    
+            st.subheader(
+                "LiveOps 活动表现"
+            )
+    
+    
+            st.caption(
+                "以下结果比较活动期间与活动前相同长度窗口的"
+                "描述性变化。该结果不等同于因果 Uplift。"
+            )
+    
+    
+            liveops_display = (
+                dynamic_liveops.rename(
+                    columns={
+                        "event_name":
+                            "活动",
+    
+                        "Before_DAU":
+                            "活动前平均 DAU",
+    
+                        "During_DAU":
+                            "活动期间平均 DAU",
+    
+                        "After_DAU":
+                            "活动后平均 DAU",
+    
+                        "DAU_change_pct":
+                            "DAU 变化 (%)",
+    
+                        "Before_Revenue":
+                            "活动前平均 Revenue",
+    
+                        "During_Revenue":
+                            "活动期间平均 Revenue",
+    
+                        "After_Revenue":
+                            "活动后平均 Revenue",
+    
+                        "Revenue_change_pct":
+                            "Revenue 变化 (%)"
+                    }
+                )
+            )
+    
+    
+            st.dataframe(
+                liveops_display,
+                use_container_width=True,
+                hide_index=True
+            )
+    
+    
+            st.subheader(
+                "活动期间 Revenue 变化"
+            )
+    
+    
+            revenue_change_chart = (
+                dynamic_liveops[[
+                    "event_name",
+                    "Revenue_change_pct"
+                ]]
+                .set_index(
+                    "event_name"
+                )
+            )
+    
+    
+            st.bar_chart(
+                revenue_change_chart
+            )
+    
+    
+            # ------------------------------
+            # 活动动态诊断
+            # ------------------------------
+    
+            st.subheader(
+                "LiveOps 动态诊断"
+            )
+    
+    
+            for _, row in dynamic_liveops.iterrows():
+    
+                event_name = row[
+                    "event_name"
+                ]
+    
+                dau_change = row[
+                    "DAU_change_pct"
+                ]
+    
+                revenue_change = row[
+                    "Revenue_change_pct"
+                ]
+    
+    
+                if (
+                    pd.notna(revenue_change)
+                    and pd.notna(dau_change)
+                    and revenue_change
+                    > dau_change * 1.3
+                    and revenue_change > 0
+                ):
+    
+                    signal = (
+                        "商业化提升更明显"
+                    )
+    
+                    diagnosis = (
+                        f"{event_name} 期间 DAU 相比活动前变化 "
+                        f"{dau_change:.2f}%，"
+                        f"Revenue 变化 {revenue_change:.2f}%。"
+                        "收入增幅明显高于活跃变化。"
+                    )
+    
+                    recommendation = (
+                        "建议进一步拆分付费率、ARPU和商品类型，"
+                        "判断收入增长来自更多玩家付费"
+                        "还是付费深度提升。"
+                    )
+    
+    
+                elif (
+                    pd.notna(dau_change)
+                    and pd.notna(revenue_change)
+                    and dau_change > 0
+                    and revenue_change > 0
+                ):
+    
+                    signal = (
+                        "活跃与商业化同步提升"
+                    )
+    
+                    diagnosis = (
+                        f"{event_name} 期间 DAU 相比活动前提升 "
+                        f"{dau_change:.2f}%，"
+                        f"Revenue 提升 {revenue_change:.2f}%。"
+                    )
+    
+                    recommendation = (
+                        "建议继续观察活动结束后的用户留存，"
+                        "判断短期增长能否转化为长期用户价值。"
+                    )
+    
+    
+                elif (
+                    pd.notna(dau_change)
+                    and dau_change > 0
+                ):
+    
+                    signal = (
+                        "拉活有效但变现较弱"
+                    )
+    
+                    diagnosis = (
+                        f"{event_name} 对 DAU 有正向变化，"
+                        f"但 Revenue 变化为 "
+                        f"{revenue_change:.2f}%。"
+                    )
+    
+                    recommendation = (
+                        "建议检查活动奖励、付费商品和商业化触点，"
+                        "判断活跃用户是否缺乏合适的付费转化路径。"
+                    )
+    
+    
+                else:
+    
+                    signal = (
+                        "活动效果待复盘"
+                    )
+    
+                    diagnosis = (
+                        f"{event_name} 期间 DAU 变化 "
+                        f"{dau_change:.2f}%，"
+                        f"Revenue 变化 "
+                        f"{revenue_change:.2f}%。"
+                    )
+    
+                    recommendation = (
+                        "建议结合大盘趋势、活动参与率和用户分群"
+                        "进一步复盘，不应仅根据简单前后对比"
+                        "判断活动是否有效。"
+                    )
+    
+    
+                with st.expander(
+                    f"🎮 {event_name} ｜ {signal}"
+                ):
+    
+                    st.write(
+                        "**诊断：**",
+                        diagnosis
+                    )
+    
+                    st.write(
+                        "**建议：**",
+                        recommendation
+                    )
+    
+    
+            st.divider()
+    
+    
+    else:
+    
+        # 内置 Demo 数据继续展示模拟实验中的 Uplift
+    
         st.subheader(
-            "LiveOps 活动表现"
+            "LiveOps 活动增量表现"
         )
-
-
+    
+    
         st.caption(
-            "以下结果比较活动期间与活动前相同长度窗口的"
-            "描述性变化。该结果不等同于因果 Uplift。"
+            "内置 Demo 数据拥有模拟基线，"
+            "因此这里可展示预设活动相对于基线的 Uplift。"
         )
-
-
+    
+    
         liveops_display = (
-            dynamic_liveops.rename(
+            liveops.rename(
                 columns={
                     "event_name":
                         "活动",
-
-                    "Before_DAU":
-                        "活动前平均 DAU",
-
-                    "During_DAU":
-                        "活动期间平均 DAU",
-
-                    "After_DAU":
-                        "活动后平均 DAU",
-
-                    "DAU_change_pct":
-                        "DAU 变化 (%)",
-
-                    "Before_Revenue":
-                        "活动前平均 Revenue",
-
-                    "During_Revenue":
-                        "活动期间平均 Revenue",
-
-                    "After_Revenue":
-                        "活动后平均 Revenue",
-
-                    "Revenue_change_pct":
-                        "Revenue 变化 (%)"
+    
+                    "baseline_avg_DAU":
+                        "基线平均 DAU",
+    
+                    "liveops_avg_DAU":
+                        "活动平均 DAU",
+    
+                    "DAU_uplift_pct":
+                        "DAU Uplift (%)",
+    
+                    "baseline_avg_revenue":
+                        "基线平均 Revenue",
+    
+                    "liveops_avg_revenue":
+                        "活动平均 Revenue",
+    
+                    "Revenue_uplift_pct":
+                        "Revenue Uplift (%)"
                 }
             )
         )
-
-
+    
+    
         st.dataframe(
             liveops_display,
             use_container_width=True,
             hide_index=True
         )
-
-
+    
+    
         st.subheader(
-            "活动期间 Revenue 变化"
+            "活动 Revenue Uplift"
         )
-
-
-        revenue_change_chart = (
-            dynamic_liveops[[
+    
+    
+        liveops_chart = (
+            liveops[[
                 "event_name",
-                "Revenue_change_pct"
+                "Revenue_uplift_pct"
             ]]
             .set_index(
                 "event_name"
             )
         )
-
-
+    
+    
         st.bar_chart(
-            revenue_change_chart
+            liveops_chart
         )
-
-
-        # ------------------------------
-        # 活动动态诊断
-        # ------------------------------
-
-        st.subheader(
-            "LiveOps 动态诊断"
+    
+    
+        st.divider()
+    
+    # ==========================================
+    # 动态自动运营诊断
+    # ==========================================
+    
+    st.subheader(
+        "自动运营诊断"
+    )
+    
+    st.caption(
+        "以下诊断基于当前上传数据与筛选条件动态生成，"
+        "属于规则型运营分析，不代表因果结论。"
+    )
+    
+    
+    # ------------------------------------------
+    # 1. 当前样本整体诊断
+    # ------------------------------------------
+    
+    with st.expander(
+        "📊 当前样本｜用户质量与商业化"
+    ):
+    
+        if d7 >= 22:
+    
+            retention_text = (
+                f"当前 D7 Retention 为 {d7:.2f}%，"
+                "在本项目设定的判断规则下表现相对较强。"
+            )
+    
+            retention_action = (
+                "建议继续观察 D30 Retention，"
+                "并拆分市场、平台和渠道确认优势来源。"
+            )
+    
+        elif d7 < 18:
+    
+            retention_text = (
+                f"当前 D7 Retention 为 {d7:.2f}%，"
+                "中期用户留存相对偏弱。"
+            )
+    
+            retention_action = (
+                "建议重点检查新手期内容承接、"
+                "Day 2–7 活动节奏及用户流失节点。"
+            )
+    
+        else:
+    
+            retention_text = (
+                f"当前 D7 Retention 为 {d7:.2f}%，"
+                "处于中等水平。"
+            )
+    
+            retention_action = (
+                "建议结合渠道和市场进一步拆分，"
+                "寻找高留存与低留存用户群体。"
+            )
+    
+    
+        if payer_rate >= 10:
+    
+            payer_text = (
+                f"付费率为 {payer_rate:.2f}%，"
+                "当前玩家群体的付费转化相对较好。"
+            )
+    
+            payer_action = (
+                "可进一步关注 ARPPU、商品结构和高价值玩家，"
+                "判断是否还有提升付费深度的空间。"
+            )
+    
+        elif payer_rate < 7:
+    
+            payer_text = (
+                f"付费率为 {payer_rate:.2f}%，"
+                "付费转化相对偏弱。"
+            )
+    
+            payer_action = (
+                "建议检查首充设计、礼包价值感、"
+                "首次付费触点及用户质量。"
+            )
+    
+        else:
+    
+            payer_text = (
+                f"付费率为 {payer_rate:.2f}%，"
+                "当前付费转化处于中等水平。"
+            )
+    
+            payer_action = (
+                "建议同时结合 ARPU 和 ARPPU，"
+                "判断优化重点应放在付费转化还是付费深度。"
+            )
+    
+    
+        st.write(
+            "**诊断：**",
+            retention_text,
+            payer_text,
+            f"当前 ARPU 为 ${arpu:.2f}，"
+            f"ARPPU 为 ${arppu:.2f}。"
         )
-
-
-        for _, row in dynamic_liveops.iterrows():
-
-            event_name = row[
-                "event_name"
+    
+        st.write(
+            "**建议：**",
+            retention_action,
+            payer_action
+        )
+    
+    
+    # ------------------------------------------
+    # 2. 动态渠道诊断
+    # ------------------------------------------
+    
+    paid_diag = channel_summary[
+        (
+            channel_summary["channel"]
+            != "Organic"
+        )
+        &
+        (
+            channel_summary[
+                "D30_ROAS_pct"
+            ].notna()
+        )
+    ].copy()
+    
+    
+    if len(paid_diag) > 0:
+    
+        median_ltv = (
+            paid_diag[
+                "D30_LTV"
+            ].median()
+        )
+    
+        median_cpi = (
+            paid_diag[
+                "CPI"
+            ].median()
+        )
+    
+    
+        for _, row in paid_diag.iterrows():
+    
+            channel = row[
+                "channel"
             ]
-
-            dau_change = row[
-                "DAU_change_pct"
+    
+            roas = row[
+                "D30_ROAS_pct"
             ]
-
-            revenue_change = row[
-                "Revenue_change_pct"
+    
+            cpi = row[
+                "CPI"
             ]
-
-
-            if (
-                pd.notna(revenue_change)
-                and pd.notna(dau_change)
-                and revenue_change
-                > dau_change * 1.3
-                and revenue_change > 0
-            ):
-
-                signal = (
-                    "商业化提升更明显"
-                )
-
+    
+            ltv = row[
+                "D30_LTV"
+            ]
+    
+            channel_d7 = row[
+                "D7"
+            ]
+    
+    
+            # ROAS较好
+            if roas >= 105:
+    
+                signal = "扩量机会"
+    
                 diagnosis = (
-                    f"{event_name} 期间 DAU 相比活动前变化 "
-                    f"{dau_change:.2f}%，"
-                    f"Revenue 变化 {revenue_change:.2f}%。"
-                    "收入增幅明显高于活跃变化。"
+                    f"{channel} 的 D30 ROAS 为 "
+                    f"{roas:.2f}%，当前30天归因收入"
+                    "已覆盖媒体投放成本。"
                 )
-
+    
                 recommendation = (
-                    "建议进一步拆分付费率、ARPU和商品类型，"
-                    "判断收入增长来自更多玩家付费"
-                    "还是付费深度提升。"
+                    "可考虑小幅增加预算进行扩量测试，"
+                    "同时持续观察扩量后的 CPI、Retention "
+                    "和用户价值是否恶化。"
                 )
-
-
+    
+    
+            # 接近回本
+            elif roas >= 95:
+    
+                signal = "接近回本"
+    
+                diagnosis = (
+                    f"{channel} 的 D30 ROAS 为 "
+                    f"{roas:.2f}%，已接近媒体投放成本回收线。"
+                )
+    
+                recommendation = (
+                    "暂不建议大幅调整预算，"
+                    "可优先测试降低 CPI 或提升后续付费表现，"
+                    "并继续观察更长期回收。"
+                )
+    
+    
+            # 高价值但获客贵
             elif (
-                pd.notna(dau_change)
-                and pd.notna(revenue_change)
-                and dau_change > 0
-                and revenue_change > 0
+                ltv >= median_ltv
+                and cpi >= median_cpi
             ):
-
-                signal = (
-                    "活跃与商业化同步提升"
-                )
-
+    
+                signal = "获客成本风险"
+    
                 diagnosis = (
-                    f"{event_name} 期间 DAU 相比活动前提升 "
-                    f"{dau_change:.2f}%，"
-                    f"Revenue 提升 {revenue_change:.2f}%。"
+                    f"{channel} 的 D30 LTV 为 "
+                    f"${ltv:.2f}，用户价值相对较高，"
+                    f"但 CPI 为 ${cpi:.2f}，"
+                    f"导致 D30 ROAS 仅为 {roas:.2f}%。"
                 )
-
+    
                 recommendation = (
-                    "建议继续观察活动结束后的用户留存，"
-                    "判断短期增长能否转化为长期用户价值。"
+                    "问题更可能出在获客成本而不是用户质量。"
+                    "建议优先测试素材、受众、版位和出价，"
+                    "尝试降低 CPI，而不是直接停止投放。"
                 )
-
-
-            elif (
-                pd.notna(dau_change)
-                and dau_change > 0
-            ):
-
-                signal = (
-                    "拉活有效但变现较弱"
-                )
-
-                diagnosis = (
-                    f"{event_name} 对 DAU 有正向变化，"
-                    f"但 Revenue 变化为 "
-                    f"{revenue_change:.2f}%。"
-                )
-
-                recommendation = (
-                    "建议检查活动奖励、付费商品和商业化触点，"
-                    "判断活跃用户是否缺乏合适的付费转化路径。"
-                )
-
-
+    
+    
+            # 其他低ROAS情况
             else:
-
-                signal = (
-                    "活动效果待复盘"
-                )
-
+    
+                signal = "效率待优化"
+    
                 diagnosis = (
-                    f"{event_name} 期间 DAU 变化 "
-                    f"{dau_change:.2f}%，"
-                    f"Revenue 变化 "
-                    f"{revenue_change:.2f}%。"
+                    f"{channel} 的 D30 ROAS 为 "
+                    f"{roas:.2f}%，目前尚未达到媒体成本回收线；"
+                    f"D7 Retention 为 {channel_d7:.2f}%。"
                 )
-
+    
                 recommendation = (
-                    "建议结合大盘趋势、活动参与率和用户分群"
-                    "进一步复盘，不应仅根据简单前后对比"
-                    "判断活动是否有效。"
+                    "建议进一步拆分国家、平台和广告素材，"
+                    "判断问题主要来自获客成本、留存还是商业化价值。"
                 )
-
-
+    
+    
             with st.expander(
-                f"🎮 {event_name} ｜ {signal}"
+                f"📣 渠道投放 ｜ "
+                f"{channel} ｜ "
+                f"{signal}"
             ):
-
+    
                 st.write(
                     "**诊断：**",
                     diagnosis
                 )
-
+    
                 st.write(
                     "**建议：**",
                     recommendation
                 )
-
-
-        st.divider()
-
-
-else:
-
-    # 内置 Demo 数据继续展示模拟实验中的 Uplift
-
-    st.subheader(
-        "LiveOps 活动增量表现"
-    )
-
-
-    st.caption(
-        "内置 Demo 数据拥有模拟基线，"
-        "因此这里可展示预设活动相对于基线的 Uplift。"
-    )
-
-
-    liveops_display = (
-        liveops.rename(
-            columns={
-                "event_name":
-                    "活动",
-
-                "baseline_avg_DAU":
-                    "基线平均 DAU",
-
-                "liveops_avg_DAU":
-                    "活动平均 DAU",
-
-                "DAU_uplift_pct":
-                    "DAU Uplift (%)",
-
-                "baseline_avg_revenue":
-                    "基线平均 Revenue",
-
-                "liveops_avg_revenue":
-                    "活动平均 Revenue",
-
-                "Revenue_uplift_pct":
-                    "Revenue Uplift (%)"
-            }
-        )
-    )
-
-
-    st.dataframe(
-        liveops_display,
-        use_container_width=True,
-        hide_index=True
-    )
-
-
-    st.subheader(
-        "活动 Revenue Uplift"
-    )
-
-
-    liveops_chart = (
-        liveops[[
-            "event_name",
-            "Revenue_uplift_pct"
-        ]]
-        .set_index(
-            "event_name"
-        )
-    )
-
-
-    st.bar_chart(
-        liveops_chart
-    )
-
-
-    st.divider()
-
-# ==========================================
-# 动态自动运营诊断
-# ==========================================
-
-st.subheader(
-    "自动运营诊断"
-)
-
-st.caption(
-    "以下诊断基于当前上传数据与筛选条件动态生成，"
-    "属于规则型运营分析，不代表因果结论。"
-)
-
-
-# ------------------------------------------
-# 1. 当前样本整体诊断
-# ------------------------------------------
-
-with st.expander(
-    "📊 当前样本｜用户质量与商业化"
-):
-
-    if d7 >= 22:
-
-        retention_text = (
-            f"当前 D7 Retention 为 {d7:.2f}%，"
-            "在本项目设定的判断规则下表现相对较强。"
-        )
-
-        retention_action = (
-            "建议继续观察 D30 Retention，"
-            "并拆分市场、平台和渠道确认优势来源。"
-        )
-
-    elif d7 < 18:
-
-        retention_text = (
-            f"当前 D7 Retention 为 {d7:.2f}%，"
-            "中期用户留存相对偏弱。"
-        )
-
-        retention_action = (
-            "建议重点检查新手期内容承接、"
-            "Day 2–7 活动节奏及用户流失节点。"
-        )
-
+    
+    
     else:
-
-        retention_text = (
-            f"当前 D7 Retention 为 {d7:.2f}%，"
-            "处于中等水平。"
+    
+        st.info(
+            "当前筛选条件下没有可用于 ROAS 诊断的付费渠道数据。"
         )
-
-        retention_action = (
-            "建议结合渠道和市场进一步拆分，"
-            "寻找高留存与低留存用户群体。"
-        )
-
-
-    if payer_rate >= 10:
-
-        payer_text = (
-            f"付费率为 {payer_rate:.2f}%，"
-            "当前玩家群体的付费转化相对较好。"
-        )
-
-        payer_action = (
-            "可进一步关注 ARPPU、商品结构和高价值玩家，"
-            "判断是否还有提升付费深度的空间。"
-        )
-
-    elif payer_rate < 7:
-
-        payer_text = (
-            f"付费率为 {payer_rate:.2f}%，"
-            "付费转化相对偏弱。"
-        )
-
-        payer_action = (
-            "建议检查首充设计、礼包价值感、"
-            "首次付费触点及用户质量。"
-        )
-
-    else:
-
-        payer_text = (
-            f"付费率为 {payer_rate:.2f}%，"
-            "当前付费转化处于中等水平。"
-        )
-
-        payer_action = (
-            "建议同时结合 ARPU 和 ARPPU，"
-            "判断优化重点应放在付费转化还是付费深度。"
-        )
-
-
-    st.write(
-        "**诊断：**",
-        retention_text,
-        payer_text,
-        f"当前 ARPU 为 ${arpu:.2f}，"
-        f"ARPPU 为 ${arppu:.2f}。"
-    )
-
-    st.write(
-        "**建议：**",
-        retention_action,
-        payer_action
-    )
-
-
-# ------------------------------------------
-# 2. 动态渠道诊断
-# ------------------------------------------
-
-paid_diag = channel_summary[
-    (
-        channel_summary["channel"]
-        != "Organic"
-    )
-    &
-    (
-        channel_summary[
-            "D30_ROAS_pct"
-        ].notna()
-    )
-].copy()
-
-
-if len(paid_diag) > 0:
-
-    median_ltv = (
-        paid_diag[
-            "D30_LTV"
-        ].median()
-    )
-
-    median_cpi = (
-        paid_diag[
-            "CPI"
-        ].median()
-    )
-
-
-    for _, row in paid_diag.iterrows():
-
-        channel = row[
-            "channel"
-        ]
-
-        roas = row[
-            "D30_ROAS_pct"
-        ]
-
-        cpi = row[
-            "CPI"
-        ]
-
-        ltv = row[
-            "D30_LTV"
-        ]
-
-        channel_d7 = row[
-            "D7"
-        ]
-
-
-        # ROAS较好
-        if roas >= 105:
-
-            signal = "扩量机会"
-
-            diagnosis = (
-                f"{channel} 的 D30 ROAS 为 "
-                f"{roas:.2f}%，当前30天归因收入"
-                "已覆盖媒体投放成本。"
-            )
-
-            recommendation = (
-                "可考虑小幅增加预算进行扩量测试，"
-                "同时持续观察扩量后的 CPI、Retention "
-                "和用户价值是否恶化。"
-            )
-
-
-        # 接近回本
-        elif roas >= 95:
-
-            signal = "接近回本"
-
-            diagnosis = (
-                f"{channel} 的 D30 ROAS 为 "
-                f"{roas:.2f}%，已接近媒体投放成本回收线。"
-            )
-
-            recommendation = (
-                "暂不建议大幅调整预算，"
-                "可优先测试降低 CPI 或提升后续付费表现，"
-                "并继续观察更长期回收。"
-            )
-
-
-        # 高价值但获客贵
-        elif (
-            ltv >= median_ltv
-            and cpi >= median_cpi
-        ):
-
-            signal = "获客成本风险"
-
-            diagnosis = (
-                f"{channel} 的 D30 LTV 为 "
-                f"${ltv:.2f}，用户价值相对较高，"
-                f"但 CPI 为 ${cpi:.2f}，"
-                f"导致 D30 ROAS 仅为 {roas:.2f}%。"
-            )
-
-            recommendation = (
-                "问题更可能出在获客成本而不是用户质量。"
-                "建议优先测试素材、受众、版位和出价，"
-                "尝试降低 CPI，而不是直接停止投放。"
-            )
-
-
-        # 其他低ROAS情况
-        else:
-
-            signal = "效率待优化"
-
-            diagnosis = (
-                f"{channel} 的 D30 ROAS 为 "
-                f"{roas:.2f}%，目前尚未达到媒体成本回收线；"
-                f"D7 Retention 为 {channel_d7:.2f}%。"
-            )
-
-            recommendation = (
-                "建议进一步拆分国家、平台和广告素材，"
-                "判断问题主要来自获客成本、留存还是商业化价值。"
-            )
-
-
-        with st.expander(
-            f"📣 渠道投放 ｜ "
-            f"{channel} ｜ "
-            f"{signal}"
-        ):
-
-            st.write(
-                "**诊断：**",
-                diagnosis
-            )
-
-            st.write(
-                "**建议：**",
-                recommendation
-            )
-
-
-else:
-
-    st.info(
-        "当前筛选条件下没有可用于 ROAS 诊断的付费渠道数据。"
-    )
-
+    
 
 # ==========================================
 # 22. 页脚
