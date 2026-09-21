@@ -76,7 +76,7 @@ st.markdown(
 def load_data():
 
     players = pd.read_csv(
-        "demo_players.csv",
+        "data/demo_players.csv",
         parse_dates=["install_date"]
     )
 
