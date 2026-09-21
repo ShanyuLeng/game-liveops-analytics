@@ -85,8 +85,8 @@ def load_data():
         parse_dates=["date"]
     )
 
-    payments = pd.read_csv(
-        "demo_payments.csv",
+     payments = pd.read_csv(
+        "data/demo_payments.csv",
         parse_dates=["payment_date"]
     )
 
