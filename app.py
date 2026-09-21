@@ -13,6 +13,60 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==========================================
+# UI 样式优化
+# ==========================================
+
+st.markdown(
+    """
+    <style>
+
+    /* 页面最大宽度 */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1450px;
+    }
+
+    /* KPI 指标卡 */
+    div[data-testid="stMetric"] {
+        background-color: #f7f8fa;
+        border: 1px solid #e5e7eb;
+        padding: 16px 18px;
+        border-radius: 12px;
+    }
+
+    /* 指标标题 */
+    div[data-testid="stMetricLabel"] {
+        font-size: 0.88rem;
+        color: #60646c;
+    }
+
+    /* 指标数字 */
+    div[data-testid="stMetricValue"] {
+        font-size: 1.9rem;
+        font-weight: 650;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        border-right: 1px solid #e5e7eb;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        font-weight: 600;
+    }
+
+    /* 缩小表格与标题之间距离 */
+    h2, h3 {
+        margin-top: 1.2rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # ==========================================
 # 2. 读取数据
@@ -891,6 +945,55 @@ st.caption(
     f"当前筛选：**{filter_text}**"
 )
 
+# ==========================================
+# 当前样本概览
+# ==========================================
+
+sample_start = filtered_players[
+    "install_date"
+].min()
+
+sample_end = filtered_players[
+    "install_date"
+].max()
+
+
+overview_col1, overview_col2, overview_col3 = st.columns(
+    [1.3, 1, 1]
+)
+
+
+with overview_col1:
+
+    st.caption("当前分析人群")
+
+    st.markdown(
+        f"**{country_filter} / "
+        f"{platform_filter} / "
+        f"{channel_filter}**"
+    )
+
+
+with overview_col2:
+
+    st.caption("安装日期范围")
+
+    st.markdown(
+        f"**{sample_start.strftime('%Y-%m-%d')} "
+        f"至 {sample_end.strftime('%Y-%m-%d')}**"
+    )
+
+
+with overview_col3:
+
+    st.caption("样本量")
+
+    st.markdown(
+        f"**{total_users:,} 名玩家**"
+    )
+
+
+st.divider()
 
 # ==========================================
 # 16. 页面导航
@@ -977,6 +1080,76 @@ with tab1:
         f"${arppu:.2f}"
     )
 
+    # ==========================================
+# 当前样本快速解读
+# ==========================================
+
+st.markdown(
+    "### 当前样本快速解读"
+)
+
+
+insight_messages = []
+
+
+# 留存
+if d7 >= 22:
+
+    insight_messages.append(
+        f"✅ D7 Retention 为 {d7:.2f}%，"
+        "在当前模拟样本中表现相对较强。"
+    )
+
+elif d7 < 18:
+
+    insight_messages.append(
+        f"⚠️ D7 Retention 为 {d7:.2f}%，"
+        "建议进一步检查 Day 2–7 的内容承接和活动节奏。"
+    )
+
+else:
+
+    insight_messages.append(
+        f"ℹ️ D7 Retention 为 {d7:.2f}%，"
+        "目前处于中等水平，可继续结合渠道和市场拆分观察。"
+    )
+
+
+# 付费
+if payer_rate >= 10:
+
+    insight_messages.append(
+        f"✅ 付费率为 {payer_rate:.2f}%，"
+        "该玩家群体的付费转化相对较好。"
+    )
+
+elif payer_rate < 7:
+
+    insight_messages.append(
+        f"⚠️ 付费率为 {payer_rate:.2f}%，"
+        "建议关注首充、礼包设计和早期付费触点。"
+    )
+
+else:
+
+    insight_messages.append(
+        f"ℹ️ 付费率为 {payer_rate:.2f}%，"
+        "可进一步结合 ARPPU 判断问题更偏付费转化还是付费深度。"
+    )
+
+
+# ARPU
+insight_messages.append(
+    f"💰 当前 ARPU 为 ${arpu:.2f}，"
+    f"ARPPU 为 ${arppu:.2f}。"
+)
+
+
+for message in insight_messages:
+
+    st.write(
+        message
+    )
 
     st.divider()
 
