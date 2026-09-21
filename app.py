@@ -100,7 +100,7 @@ def load_data():
     )
 
     insights = pd.read_csv(
-        "auto_insights.csv"
+        "outputs/auto_insights.csv"
     )
 
     return (
