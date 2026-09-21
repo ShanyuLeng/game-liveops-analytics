@@ -195,6 +195,321 @@ if data_source == "上传自己的 CSV":
         key="liveops_upload"
     )
 
+# ==========================================
+# 读取用户上传的数据
+# ==========================================
+
+if data_source == "上传自己的 CSV":
+
+    # 三个核心文件必须全部上传
+    if not required_files_ready:
+
+        st.info(
+            "👈 请先在左侧上传 players、daily_activity "
+            "和 payments 三个核心 CSV 文件。"
+        )
+
+        st.stop()
+
+
+    try:
+
+        # ------------------------------
+        # 1. 读取玩家数据
+        # ------------------------------
+
+        uploaded_players_df = pd.read_csv(
+            uploaded_players
+        )
+
+        required_player_cols = {
+            "user_id",
+            "install_date",
+            "country",
+            "platform",
+            "channel"
+        }
+
+        missing_player_cols = (
+            required_player_cols
+            - set(uploaded_players_df.columns)
+        )
+
+        if missing_player_cols:
+
+            st.error(
+                "players.csv 缺少字段："
+                + ", ".join(missing_player_cols)
+            )
+
+            st.stop()
+
+
+        uploaded_players_df[
+            "install_date"
+        ] = pd.to_datetime(
+            uploaded_players_df[
+                "install_date"
+            ]
+        )
+
+
+        # ------------------------------
+        # 2. 读取活跃数据
+        # ------------------------------
+
+        uploaded_activity_df = pd.read_csv(
+            uploaded_activity
+        )
+
+        required_activity_cols = {
+            "user_id",
+            "date",
+            "day_since_install"
+        }
+
+        missing_activity_cols = (
+            required_activity_cols
+            - set(uploaded_activity_df.columns)
+        )
+
+        if missing_activity_cols:
+
+            st.error(
+                "daily_activity.csv 缺少字段："
+                + ", ".join(
+                    missing_activity_cols
+                )
+            )
+
+            st.stop()
+
+
+        uploaded_activity_df[
+            "date"
+        ] = pd.to_datetime(
+            uploaded_activity_df["date"]
+        )
+
+
+        # ------------------------------
+        # 3. 读取付费数据
+        # ------------------------------
+
+        uploaded_payments_df = pd.read_csv(
+            uploaded_payments
+        )
+
+        required_payment_cols = {
+            "user_id",
+            "payment_date",
+            "day_since_install",
+            "amount_usd"
+        }
+
+        missing_payment_cols = (
+            required_payment_cols
+            - set(uploaded_payments_df.columns)
+        )
+
+        if missing_payment_cols:
+
+            st.error(
+                "payments.csv 缺少字段："
+                + ", ".join(
+                    missing_payment_cols
+                )
+            )
+
+            st.stop()
+
+
+        uploaded_payments_df[
+            "payment_date"
+        ] = pd.to_datetime(
+            uploaded_payments_df[
+                "payment_date"
+            ]
+        )
+
+
+        # ------------------------------
+        # 4. 用上传数据覆盖内置模拟数据
+        # ------------------------------
+
+        players = uploaded_players_df
+        activity = uploaded_activity_df
+        payments = uploaded_payments_df
+
+
+        # ------------------------------
+        # 5. 广告投放数据（可选）
+        # ------------------------------
+
+        if uploaded_marketing is not None:
+
+            uploaded_marketing_df = pd.read_csv(
+                uploaded_marketing
+            )
+
+            required_marketing_cols = {
+                "date",
+                "country",
+                "platform",
+                "channel",
+                "spend",
+                "impressions",
+                "clicks",
+                "installs"
+            }
+
+            missing_marketing_cols = (
+                required_marketing_cols
+                - set(
+                    uploaded_marketing_df.columns
+                )
+            )
+
+            if missing_marketing_cols:
+
+                st.error(
+                    "marketing.csv 缺少字段："
+                    + ", ".join(
+                        missing_marketing_cols
+                    )
+                )
+
+                st.stop()
+
+
+            uploaded_marketing_df[
+                "date"
+            ] = pd.to_datetime(
+                uploaded_marketing_df["date"]
+            )
+
+
+            # 如果用户数据里没有 D30_revenue，
+            # 根据玩家来源和30天付费自动计算
+
+            if (
+                "D30_revenue"
+                not in uploaded_marketing_df.columns
+            ):
+
+                payment_attribution = (
+                    payments.merge(
+                        players[[
+                            "user_id",
+                            "install_date",
+                            "country",
+                            "platform",
+                            "channel"
+                        ]],
+                        on="user_id",
+                        how="left"
+                    )
+                )
+
+
+                d30_revenue_by_cohort = (
+                    payment_attribution[
+                        payment_attribution[
+                            "day_since_install"
+                        ] <= 30
+                    ]
+                    .groupby([
+                        "install_date",
+                        "country",
+                        "platform",
+                        "channel"
+                    ])["amount_usd"]
+                    .sum()
+                    .reset_index(
+                        name="D30_revenue"
+                    )
+                )
+
+
+                uploaded_marketing_df = (
+                    uploaded_marketing_df.merge(
+                        d30_revenue_by_cohort,
+                        left_on=[
+                            "date",
+                            "country",
+                            "platform",
+                            "channel"
+                        ],
+                        right_on=[
+                            "install_date",
+                            "country",
+                            "platform",
+                            "channel"
+                        ],
+                        how="left"
+                    )
+                )
+
+
+                uploaded_marketing_df.drop(
+                    columns=["install_date"],
+                    inplace=True
+                )
+
+
+                uploaded_marketing_df[
+                    "D30_revenue"
+                ] = (
+                    uploaded_marketing_df[
+                        "D30_revenue"
+                    ]
+                    .fillna(0)
+                )
+
+
+            marketing = uploaded_marketing_df
+
+
+        else:
+
+            # 没上传 marketing 时创建空表
+            marketing = pd.DataFrame(
+                columns=[
+                    "date",
+                    "country",
+                    "platform",
+                    "channel",
+                    "spend",
+                    "impressions",
+                    "clicks",
+                    "installs",
+                    "D30_revenue"
+                ]
+            )
+
+
+        # ------------------------------
+        # 6. 更新观察截止日期
+        # ------------------------------
+
+        OBSERVATION_END = (
+            activity["date"].max()
+        )
+
+
+        st.sidebar.success(
+            "✅ 已切换为上传数据"
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            f"读取 CSV 时出现错误：{e}"
+        )
+
+        st.stop()
+
 st.sidebar.title(
     "🎛️ 数据筛选"
 )
@@ -974,11 +1289,20 @@ st.caption(
 )
 
 
-st.info(
-    "说明：本 Dashboard 使用 Synthetic Data（模拟数据）"
-    "进行功能演示，不代表《第五人格》"
-    "或任何真实游戏的内部数据。"
-)
+if data_source == "使用内置模拟数据":
+
+    st.info(
+        "说明：本 Dashboard 使用 Synthetic Data（模拟数据）"
+        "进行功能演示，不代表《第五人格》"
+        "或任何真实游戏的内部数据。"
+    )
+
+else:
+
+    st.success(
+        "当前正在分析用户上传的 CSV 数据。"
+        "所有指标均根据本次上传文件动态计算。"
+    )
 
 
 # ==========================================
