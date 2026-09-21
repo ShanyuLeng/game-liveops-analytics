@@ -202,7 +202,11 @@ if data_source == "上传自己的 CSV":
 if data_source == "上传自己的 CSV":
 
     # 三个核心文件必须全部上传
-    if not required_files_ready:
+    if (
+    uploaded_players is None
+    or uploaded_activity is None
+    or uploaded_payments is None
+):
 
         st.info(
             "👈 请先在左侧上传 players、daily_activity "
