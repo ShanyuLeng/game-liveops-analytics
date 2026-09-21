@@ -407,35 +407,35 @@ Dashboard 当前支持三类筛选条件。
 
 ```text
 game-liveops-analytics/
-│
 ├── app.py
-├── requirements.txt
 ├── README.md
+├── requirements.txt
+│
+├── assets/
+│   ├── dashboard_overview.png
+│   ├── channel_analysis.png
+│   └── liveops_analysis.png
+│
+├── data/
+│   ├── demo_players.csv
+│   ├── demo_daily_activity.csv
+│   ├── demo_payments.csv
+│   ├── demo_marketing.csv
+│   └── demo_liveops_events.csv
 │
 ├── notebooks/
 │   └── 01_generate_demo_data.ipynb
 │
-├── demo_players.csv
-├── demo_daily_activity.csv
-├── demo_payments.csv
-├── demo_marketing.csv
-├── demo_liveops_events.csv
-│
-├── retention_summary.csv
-├── channel_monetization.csv
-├── channel_performance_summary.csv
-├── channel_ua_summary.csv
-├── liveops_event_uplift.csv
-└── auto_insights.csv
+└── outputs/
+    ├── daily_kpis.csv
+    ├── retention_summary.csv
+    ├── country_monetization.csv
+    ├── channel_monetization.csv
+    ├── channel_ua_summary.csv
+    ├── channel_performance_summary.csv
+    ├── liveops_event_uplift.csv
+    └── auto_insights.csv
 ```
-
-后续可进一步整理为：
-
-- `data/`
-- `outputs/`
-- `assets/`
-
-等目录。
 
 ---
 
