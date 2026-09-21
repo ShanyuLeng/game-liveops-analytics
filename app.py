@@ -81,7 +81,7 @@ def load_data():
     )
 
     activity = pd.read_csv(
-        "demo_daily_activity.csv",
+        "data/demo_daily_activity.csv",
         parse_dates=["date"]
     )
 
